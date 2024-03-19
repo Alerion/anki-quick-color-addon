@@ -1,0 +1,1 @@
+# anki-quick-color-addon
