@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "anki-quick-color-addon"
+version = "0.1.0"
+description = ""
+authors = ["Dmytro Kostochko <alerion.um@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+mypy = "^1.9.0"
+aqt = {extras = ["qt6"], version = "^23.12.1"}
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
