@@ -17,6 +17,7 @@
 Run anki in console:
 
     cd "C:\Program Files\Anki"
+    export QTWEBENGINE_REMOTE_DEBUGGING=8080
     ./anki-console.bat
 
 Create symlink to addons folder:
