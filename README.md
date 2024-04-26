@@ -23,3 +23,7 @@ Run anki in console:
 Create symlink to addons folder:
 
     mklink /D C:\Users\user\AppData\Roaming\Anki2\addons21\quickcolor <path to project>\anki-quick-color-addon\addon\
+
+Activate virtualenv:
+
+    source ./venv/Scripts/activate
