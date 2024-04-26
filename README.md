@@ -24,6 +24,12 @@ Create symlink to addons folder:
 
     mklink /D C:\Users\user\AppData\Roaming\Anki2\addons21\quickcolor <path to project>\anki-quick-color-addon\addon\
 
-Activate virtualenv:
+Install dependencies:
 
     source ./venv/Scripts/activate
+    poetry install
+
+Install dependencies into addon folder
+
+    poetry export --only addon -f requirements.txt --output requirements.txt
+    pip install -r requirements.txt -t ./addon/dependencies

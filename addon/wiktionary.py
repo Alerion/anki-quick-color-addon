@@ -1,24 +1,19 @@
 from typing import Optional
 import re
-import urllib.request
-import json
+import requests
+
 
 # https://www.mediawiki.org/wiki/API:Query
-SEARCH_URL = "https://de.wiktionary.org/w/api.php?action=query&format=json&redirects&titles={}"
-
-
-def request_json_from_url(url: str) -> Optional[dict]:
-    try:
-        with urllib.request.urlopen(url) as response:
-            content = response.read().decode('utf-8')
-            return json.loads(content)
-    except urllib.error.URLError as e:
-        print("Failed to fetch HTML from the URL:", e)
+SEARCH_URL = "https://de.wiktionary.org/w/api.php"
 
 
 def find_word_page_id(word: str) -> Optional[int]:
-    url = SEARCH_URL.format(word)
-    response = request_json_from_url(url)
+    params = {
+        "action": "query",
+        "format": "json",
+        "titles": word,
+    }
+    response = requests.get(SEARCH_URL, params).json()
     pages = list(response["query"]["pages"].keys())
     if not pages:
         return None
@@ -30,19 +25,30 @@ PAGE_URL = "https://de.wiktionary.org/w/api.php?redirects&action=parse&format=js
 
 
 def get_page_wikitext(page_id: int) -> str:
-    url = PAGE_URL.format(page_id)
-    response = request_json_from_url(url)
+    params = {
+        "action": "parse",
+        "format": "json",
+        "prop": "wikitext",
+        "pageid": page_id
+    }
+    response = requests.get(PAGE_URL, params).json()
     wikitext = response["parse"]["wikitext"]["*"]
     return wikitext
 
 
 # https://www.mediawiki.org/wiki/API:Parsing_wikitext
-FILES_URL = "https://de.wiktionary.org/w/api.php?action=query&format=json&redirects&prop=imageinfo&iiprop=url&titles=File:{}"
+FILES_URL = "https://de.wiktionary.org/w/api.php"
 
 
 def get_file_url(file_name: str) -> Optional[str]:
-    url = FILES_URL.format(file_name)
-    response = request_json_from_url(url)
+    params = {
+        "action": "query",
+        "format": "json",
+        "prop": "imageinfo",
+        "iiprop": "url",
+        "titles": f"File:{file_name}",
+    }
+    response = requests.get(FILES_URL, params).json()
     pages = list(response["query"]['pages'].values())
     imageinfo = pages[0]["imageinfo"][0]
     return imageinfo["url"]

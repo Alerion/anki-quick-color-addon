@@ -3,6 +3,13 @@
 
 https://developer.mozilla.org/en-US/docs/Web/API/document/execCommand
 """
+import sys
+import os.path
+
+# Inject external dependencies.
+DEPENDENCIES_PATH = os.path.join(os.path.dirname(__file__), '../dependencies')
+sys.path.insert(0, DEPENDENCIES_PATH)
+
 from functools import partial
 import aqt.editor
 from aqt import gui_hooks
