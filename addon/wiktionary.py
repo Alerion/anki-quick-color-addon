@@ -21,7 +21,7 @@ def find_word_page_id(word: str) -> Optional[int]:
 
 
 # https://www.mediawiki.org/wiki/API:Parsing_wikitext
-PAGE_URL = "https://de.wiktionary.org/w/api.php?redirects&action=parse&format=json&prop=wikitext&pageid={}"
+PAGE_URL = "https://de.wiktionary.org/w/api.php"
 
 
 def get_page_wikitext(page_id: int) -> str:
@@ -64,15 +64,27 @@ def get_word_wikitext(word: str) -> Optional[str]:
     return wikitext
 
 
-AUDIO_RE = re.compile(r"\{\{Audio\|(.*?)\}\}")
+AUDIO_RE = re.compile(r"\{\{Audio\|(?P<file>.*?)(|spr=(?P<spr>at))?\}\}")
+
+
+def get_best_audio_match(matches) -> Optional[str]:
+    """
+    Return latest one withou specified language. It has the best audio quality.
+    """
+    for match in reversed(matches):
+        if match.group("spr") is not None:
+            continue
+        file_name = match.group("file")
+        if file_name.startswith("De-"):
+            return file_name
 
 
 def get_audio_url_from_wikitext(wikitext: str) -> Optional[str]:
-    matches = AUDIO_RE.findall(wikitext)
+    matches = list(AUDIO_RE.finditer(wikitext))
 
     if not matches:
         return
-    audio_file_name = matches[0]
+    audio_file_name = get_best_audio_match(matches)
 
     audio_file_url = get_file_url(audio_file_name)
     if not audio_file_url:

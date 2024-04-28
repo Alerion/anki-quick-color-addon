@@ -75,6 +75,7 @@ def insert_pronoun(editor: aqt.editor.Editor) -> None:
 def insert_word_description(editor: aqt.editor.Editor, only_audio: bool = False) -> None:
     clipboard = editor.mw.app.clipboard()
     word = clipboard.text().strip()
+
     if not word:
         print("No word found in clipboard")
         return
@@ -89,7 +90,7 @@ def insert_word_description(editor: aqt.editor.Editor, only_audio: bool = False)
     if not only_audio:
         # Load IPA
         ipa = get_ipa_from_wikitext(wikitext)
-
+        # TODO: Add article.
         # Insert word
         html = f'<h2>{word}</h2>[{ipa}]'
         editor.web.eval(f"setFormat('insertHTML', '{html}')")
@@ -115,6 +116,8 @@ def insert_word_description(editor: aqt.editor.Editor, only_audio: bool = False)
 
 def add_shortcuts(shortcuts: list[tuple], editor: aqt.editor.Editor) -> None:
     shortcuts.append(("F1", partial(insert_word_description, editor)))
+    # For edit page. F1 does not work.
+    shortcuts.append(("F12", partial(insert_word_description, editor)))
     shortcuts.append(("F2", partial(insert_der, editor)))
     shortcuts.append(("F3", partial(insert_die, editor)))
     shortcuts.append(("F4", partial(insert_das, editor)))
