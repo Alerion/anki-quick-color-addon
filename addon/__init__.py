@@ -96,12 +96,18 @@ def insert_pronoun(editor: aqt.editor.Editor) -> None:
     editor.web.eval(f"setFormat('insertHTML', '{PRONOMEN_TEXT}')")
 
 
+JUNKTION_TEXT = '<span style="color: #eee;"><b>JUNKTION</b></span>'
+NUMBER_TEXT = '<span style="color: #eee;"><b>NUMBER</b></span>'
+
+
 SPEACH_PART_TO_TEXT = {
     SpeachPart.NOUN: NOUN_TEXT,
     SpeachPart.VERB: VERB_TEXT,
     SpeachPart.ADVERB: ADVERB_TEXT,
     SpeachPart.ADJECTIVE: ADJECTIVE_TEXT,
     SpeachPart.PRONOUN: PRONOMEN_TEXT,
+    SpeachPart.JUNKTION: JUNKTION_TEXT,
+    SpeachPart.NUMBER: NUMBER_TEXT,
 }
 
 GENDER_TO_TEXT = {
@@ -129,8 +135,9 @@ def insert_word_description(editor: aqt.editor.Editor, only_audio: bool = False)
     if not only_audio:
         # Set speech part into Info.
         speech_part = get_speach_part_from_wikitext(wikitext)
-        editor.note["Info"] = SPEACH_PART_TO_TEXT[speech_part]
-        editor.set_note(editor.note)
+        if speech_part in SPEACH_PART_TO_TEXT:
+            editor.note["Info"] = SPEACH_PART_TO_TEXT[speech_part]
+            editor.set_note(editor.note)
 
         # Set article.
         article_text = ""

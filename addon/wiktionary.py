@@ -11,6 +11,8 @@ class SpeachPart(str, Enum):
     ADJECTIVE = "ADJECTIVE"
     ADVERB = "ADVERB"
     PRONOUN = "PRONOUN"
+    NUMBER = "NUMBER"
+    JUNKTION = "JUNKTION"
 
 
 class Gender(str, Enum):
@@ -123,10 +125,11 @@ def get_ipa_from_wikitext(wikitext: str) -> Optional[str]:
 SPEECH_PART_RE = re.compile(r"\{\{Wortart\|(?P<part>\w+)\|Deutsch\}\}(, +\{\{(?P<gender>f|m|n)\}\})?")
 
 
-def get_speach_part_from_wikitext(wikitext: str) -> SpeachPart:
+def get_speach_part_from_wikitext(wikitext: str) -> Optional[SpeachPart]:
     matches = list(SPEECH_PART_RE.finditer(wikitext))
     speech_part_match = matches[0].group("part")
 
+    # https://de.wiktionary.org/wiki/Hilfe:Wortart
     if speech_part_match == "Substantiv":
         return SpeachPart.NOUN
     if speech_part_match == "Verb":
@@ -137,7 +140,10 @@ def get_speach_part_from_wikitext(wikitext: str) -> SpeachPart:
         return SpeachPart.ADVERB
     if speech_part_match == "Personalpronomen":
         return SpeachPart.PRONOUN
-    showInfo(f"Speach part is not detected from: {speech_part_match}")
+    if speech_part_match in ("Junktion", "Konjunktion", "Subjunktion"):
+        return SpeachPart.JUNKTION
+    if speech_part_match == "Numerale":
+        return SpeachPart.NUMBER
 
 
 def get_gender_from_wikitext(wikitext: str) -> Optional[Gender]:
