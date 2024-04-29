@@ -192,7 +192,7 @@ REF_RE = re.compile(r"<ref[^>]*>.*?</ref>")
 EXAMPLE_RE = re.compile(r"\{\{Beispiele\}\}(?P<examples>.*?)\{\{[^{]+\}\}", re.DOTALL)
 
 
-def get_examples_from_wikitext(wikitext: str) -> list[str]:
+def get_examples_from_wikitext(wikitext: str, max_number: int = 10) -> list[str]:
     wikitext = REF_RE.sub("", wikitext)
     match = EXAMPLE_RE.search(wikitext)
     if not match:
@@ -202,13 +202,43 @@ def get_examples_from_wikitext(wikitext: str) -> list[str]:
 
     output = []
     for example in examples:
-        example = re.sub(r":\[[\d ,]+\]", "", example)
+        example = re.sub(r":\[[\w ,]+\]", "", example)
         example = example.strip()
         example = example.strip("„“=\n")
-        if not example:
+        if not example or example.startswith("::Anneliese"):
             continue
 
         example = re.sub(r"''(.*?)''", r"<b>\1</b>", example)
         output.append(example)
 
-    return output
+    return output[:max_number]
+
+
+HELP_VERB_RE = re.compile(r"Hilfsverb=(?P<help_verb>\w+)")
+
+
+def get_help_verb_from_wikitext(wikitext: str) -> Optional[str]:
+    matches = list(HELP_VERB_RE.finditer(wikitext))
+    if not matches:
+        return
+    return matches[0].group("help_verb")
+
+
+PRATERITUM_RE = re.compile(r"Präteritum_ich=(?P<prateritum>[\w ]+)")
+
+
+def get_prateritum_from_wikitext(wikitext: str) -> Optional[str]:
+    matches = list(PRATERITUM_RE.finditer(wikitext))
+    if not matches:
+        return
+    return matches[0].group("prateritum")
+
+
+PARTIZIP2_RE = re.compile(r"Partizip II=(?P<partizip2>[\w ]+)")
+
+
+def get_partizip2_from_wikitext(wikitext: str) -> Optional[str]:
+    matches = list(PARTIZIP2_RE.finditer(wikitext))
+    if not matches:
+        return
+    return matches[0].group("partizip2")

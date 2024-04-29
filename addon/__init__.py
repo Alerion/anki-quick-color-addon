@@ -29,6 +29,9 @@ from .wiktionary import (
     get_plural_from_wikitext,
     get_genitive_from_wikitext,
     get_examples_from_wikitext,
+    get_help_verb_from_wikitext,
+    get_prateritum_from_wikitext,
+    get_partizip2_from_wikitext,
 )
 from .translation import get_uk_translation
 
@@ -128,6 +131,109 @@ GENDER_TO_TEXT = {
 def insert_word_description(
     editor: aqt.editor.Editor, only_audio: bool = False
 ) -> None:
+    config = mw.addonManager.getConfig(__name__)
+
+    clipboard = editor.mw.app.clipboard()
+    word = clipboard.text().strip()
+
+    if not word:
+        showInfo("No word found in clipboard")
+        return
+
+    page = find_word_page(word)
+    if not page:
+        showInfo(f"Page not found for word '{word}'")
+        return
+
+    wikitext = get_page_wikitext(page.page_id)
+    if not wikitext:
+        showInfo(f"No wikitext found for: {word}")
+        return
+
+    # Set speech part into Info.
+    speech_part = get_speach_part_from_wikitext(wikitext)
+    if speech_part in SPEACH_PART_TO_TEXT:
+        editor.note["Info"] = SPEACH_PART_TO_TEXT[speech_part]
+
+    # NOUN
+    article_text = ""
+    if speech_part == SpeachPart.NOUN:
+        # Set article.
+        gender = get_gender_from_wikitext(wikitext)
+        if gender:
+            article_text = f"{GENDER_TO_TEXT[gender]} "
+
+        # Set Example field.
+        plural = get_plural_from_wikitext(wikitext)
+        genitive = get_genitive_from_wikitext(wikitext)
+        editor.note["Example"] = (
+            f'<span class="plural-label">plural:</span>'
+            f'<span class="plural-value">{plural}</span>'
+            f'<span class="genitive-label">genitive:</span>'
+            f'<span class="genitive-value">{genitive}</span>'
+        )
+
+    if speech_part == SpeachPart.VERB:
+        # Add word forms.
+        prateritum = get_prateritum_from_wikitext(wikitext)
+        partizip2 = get_partizip2_from_wikitext(wikitext)
+        editor.note["Example"] = (
+            f'<span class="prateritum-label">Präteritum:</span>'
+            f'<span class="prateritum-value">{prateritum}</span>'
+            f'<span class="partizip2-label">Partizip II:</span>'
+            f'<span class="partizip2-value">{partizip2}</span>'
+        )
+
+        # Add help verb.
+        help_verb = get_help_verb_from_wikitext(wikitext)
+        if help_verb == "sein":
+            editor.note["Example"] += (
+                f', <span class="hilfsverb-label">Hilfsverb:</span>'
+                f'<span class="hilfsverb-value">{help_verb}</span>'
+            )
+
+    # Add examples.
+    examples = get_examples_from_wikitext(wikitext)
+    if examples:
+        editor.note["Example"] += '<ul class="examples">'
+        for example in examples:
+            editor.note["Example"] += f"<li>{example}</li>"
+        editor.note["Example"] += "</ul>"
+
+    # Add Wiktionary URL.
+    editor.note["Example"] += f'<a href="{page.full_url}">{page.full_url}</a>'
+
+    # Add translation.
+    if config["INSERT_TRANSLATION"] and config["DEEPL_AUTH_KEY"]:
+        uk_word = get_uk_translation(word, config["DEEPL_AUTH_KEY"])
+        editor.note["Back"] = f'<span style="font-weight: bold;">{uk_word}</span>'
+
+    editor.set_note(editor.note)
+
+    # Load IPA
+    ipa = get_ipa_from_wikitext(wikitext)
+    # Insert word
+    html = f"<h2>{article_text}{word}</h2>[{ipa}]"
+    editor.web.eval(f"setFormat('insertHTML', '{html}')")
+
+    # Insert audio
+    audio_url = get_audio_url_from_wikitext(wikitext)
+    if audio_url:
+        audio_url = f"\n{audio_url}"
+        clipboard.setText(audio_url)
+        # Trigger audio paste, so Anki can replace with proper tag.
+        editor.onPaste()
+        clipboard.setText(word)
+    else:
+        showInfo(f"Audio file was not found for: {word}")
+
+    # Get selected text.
+    # def callback(*args, **kwargs):
+    #     print(args, kwargs)
+    # editor.web.evalWithCallback("window.getSelection().toString()", callback)
+
+
+def insert_audio(editor: aqt.editor.Editor):
     clipboard = editor.mw.app.clipboard()
     word = clipboard.text().strip()
 
@@ -146,72 +252,14 @@ def insert_word_description(
         return
 
     audio_url = get_audio_url_from_wikitext(wikitext)
+    if not audio_url:
+        showInfo(f"Audio file was not found for: {word}")
+        return
 
-    if not only_audio:
-        # Set speech part into Info.
-        speech_part = get_speach_part_from_wikitext(wikitext)
-        if speech_part in SPEACH_PART_TO_TEXT:
-            editor.note["Info"] = SPEACH_PART_TO_TEXT[speech_part]
-
-        article_text = ""
-        if speech_part == SpeachPart.NOUN:
-            # Set article.
-            gender = get_gender_from_wikitext(wikitext)
-            if gender:
-                article_text = f"{GENDER_TO_TEXT[gender]} "
-
-            # Set Example field.
-            plural = get_plural_from_wikitext(wikitext)
-            genitive = get_genitive_from_wikitext(wikitext)
-            editor.note["Example"] = (
-                f'<span style="font-weight: bold">{genitive}</span>'
-                f'<span style="font-style: italic">&nbsp;genitive</span>, '
-                f'<span style="font-weight: bold">{plural}</span>'
-                f'<span style="font-style: italic">&nbsp;plural</span>'
-            )
-
-        # Add examples.
-        examples = get_examples_from_wikitext(wikitext)
-        if examples:
-            editor.note["Example"] += '<ul class="examples">'
-            for example in examples:
-                editor.note["Example"] += f"<li>{example}</li>"
-            editor.note["Example"] += "</ul>"
-
-        # Add Wiktionary URL.
-        editor.note["Example"] += f'<a href="{page.full_url}">{page.full_url}</a>'
-
-        # Add translation.
-        config = mw.addonManager.getConfig(__name__)
-        if config["DEEPL_AUTH_KEY"]:
-            uk_word = get_uk_translation(word, config["DEEPL_AUTH_KEY"])
-            editor.note["Back"] = f'<span style="font-weight: bold;">{uk_word}</span>'
-
-        editor.set_note(editor.note)
-
-        # Load IPA
-        ipa = get_ipa_from_wikitext(wikitext)
-        # TODO: Add article.
-        # Insert word
-        html = f"<h2>{article_text}{word}</h2>[{ipa}]"
-        editor.web.eval(f"setFormat('insertHTML', '{html}')")
-        # Can't paste new line with insertHTML.
-        audio_url = f"\n{audio_url}"
-
-    # Insert audio
-    if audio_url:
-        clipboard.setText(audio_url)
-        # Trigger audio paste, so Anki can replace with proper tag.
-        editor.onPaste()
-
-        clipboard.setText(word)
-    else:
-        print(f"Audio file was not found for: {word}")
-
-    # Get selected text.
-    # def callback(*args, **kwargs):
-    #     print(args, kwargs)
-    # editor.web.evalWithCallback("window.getSelection().toString()", callback)
+    clipboard.setText(audio_url)
+    # Trigger audio paste, so Anki can replace with proper tag.
+    editor.onPaste()
+    clipboard.setText(word)
 
 
 def add_shortcuts(shortcuts: list[tuple], editor: aqt.editor.Editor) -> None:
@@ -230,7 +278,7 @@ def add_shortcuts(shortcuts: list[tuple], editor: aqt.editor.Editor) -> None:
     shortcuts.append(("F9", partial(insert_adverb, editor)))
     shortcuts.append(("F10", partial(insert_pronoun, editor)))
     shortcuts.append(
-        ("Alt+F1", partial(insert_word_description, editor, only_audio=True))
+        ("Alt+F1", partial(insert_audio, editor))
     )
 
 
