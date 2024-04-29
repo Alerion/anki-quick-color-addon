@@ -3,25 +3,31 @@
 
 https://developer.mozilla.org/en-US/docs/Web/API/document/execCommand
 """
+
 import sys
 import os.path
 
 # Inject external dependencies.
-DEPENDENCIES_PATH = os.path.join(os.path.dirname(__file__), '../dependencies')
+DEPENDENCIES_PATH = os.path.join(os.path.dirname(__file__), "../dependencies")
 sys.path.insert(0, DEPENDENCIES_PATH)
 
 from functools import partial
 import aqt.editor
 from aqt import gui_hooks
+from aqt.utils import showInfo
 
 from .wiktionary import (
-    get_word_wikitext,
+    find_word_page,
+    get_page_wikitext,
     get_audio_url_from_wikitext,
     get_ipa_from_wikitext,
     get_speach_part_from_wikitext,
     SpeachPart,
     get_gender_from_wikitext,
     Gender,
+    get_plural_from_wikitext,
+    get_genitive_from_wikitext,
+    get_examples_from_wikitext,
 )
 
 RED = "#c12d30"
@@ -36,7 +42,7 @@ def change_color(editor: aqt.editor.Editor, color: str, bold: bool = False) -> N
 
 
 def insert_template(editor: aqt.editor.Editor) -> None:
-    html = '<h2>word</h2>[ipa]'
+    html = "<h2>word</h2>[ipa]"
     editor.web.eval(f"setFormat('insertHTML', '{html}')")
 
 
@@ -117,17 +123,24 @@ GENDER_TO_TEXT = {
 }
 
 
-def insert_word_description(editor: aqt.editor.Editor, only_audio: bool = False) -> None:
+def insert_word_description(
+    editor: aqt.editor.Editor, only_audio: bool = False
+) -> None:
     clipboard = editor.mw.app.clipboard()
     word = clipboard.text().strip()
 
     if not word:
-        print("No word found in clipboard")
+        showInfo("No word found in clipboard")
         return
 
-    wikitext = get_word_wikitext(word)
+    page = find_word_page(word)
+    if not page:
+        showInfo(f"Page not found for word '{word}'")
+        return
+
+    wikitext = get_page_wikitext(page.page_id)
     if not wikitext:
-        print(f"No wikitext found for: {word}")
+        showInfo(f"No wikitext found for: {word}")
         return
 
     audio_url = get_audio_url_from_wikitext(wikitext)
@@ -137,25 +150,45 @@ def insert_word_description(editor: aqt.editor.Editor, only_audio: bool = False)
         speech_part = get_speach_part_from_wikitext(wikitext)
         if speech_part in SPEACH_PART_TO_TEXT:
             editor.note["Info"] = SPEACH_PART_TO_TEXT[speech_part]
-            editor.set_note(editor.note)
 
-        # Set article.
         article_text = ""
         if speech_part == SpeachPart.NOUN:
+            # Set article.
             gender = get_gender_from_wikitext(wikitext)
             if gender:
                 article_text = f"{GENDER_TO_TEXT[gender]} "
+
+            # Set Example field.
+            plural = get_plural_from_wikitext(wikitext)
+            genitive = get_genitive_from_wikitext(wikitext)
+            editor.note["Example"] = (
+                f'<span style="font-weight: bold">{genitive}</span>'
+                f'<span style="font-style: italic">&nbsp;genitive</span>, '
+                f'<span style="font-weight: bold">{plural}</span>'
+                f'<span style="font-style: italic">&nbsp;plural</span>'
+            )
+
+        # Add examples.
+        examples = get_examples_from_wikitext(wikitext)
+        if examples:
+            editor.note["Example"] += '<ul class="examples">'
+            for example in examples:
+                editor.note["Example"] += f"<li>{example}</li>"
+            editor.note["Example"] += "</ul>"
+
+        # Add Wiktionary URL.
+        editor.note["Example"] += f'<a href="{page.full_url}">{page.full_url}</a>'
+
+        editor.set_note(editor.note)
 
         # Load IPA
         ipa = get_ipa_from_wikitext(wikitext)
         # TODO: Add article.
         # Insert word
-        html = f'<h2>{article_text}{word}</h2>[{ipa}]'
+        html = f"<h2>{article_text}{word}</h2>[{ipa}]"
         editor.web.eval(f"setFormat('insertHTML', '{html}')")
         # Can't paste new line with insertHTML.
         audio_url = f"\n{audio_url}"
-
-
 
     # Insert audio
     if audio_url:
@@ -166,7 +199,6 @@ def insert_word_description(editor: aqt.editor.Editor, only_audio: bool = False)
         clipboard.setText(word)
     else:
         print(f"Audio file was not found for: {word}")
-
 
     # Get selected text.
     # def callback(*args, **kwargs):
@@ -189,7 +221,9 @@ def add_shortcuts(shortcuts: list[tuple], editor: aqt.editor.Editor) -> None:
     shortcuts.append(("F8", partial(insert_adjective, editor)))
     shortcuts.append(("F9", partial(insert_adverb, editor)))
     shortcuts.append(("F10", partial(insert_pronoun, editor)))
-    shortcuts.append(("Alt+F1", partial(insert_word_description, editor, only_audio=True)))
+    shortcuts.append(
+        ("Alt+F1", partial(insert_word_description, editor, only_audio=True))
+    )
 
 
 # https://addon-docs.ankiweb.net/hooks-and-filters.html

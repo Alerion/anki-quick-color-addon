@@ -10,6 +10,7 @@ readme = "README.md"
 python = "^3.9"
 mypy = "^1.9.0"
 aqt = {extras = ["qt6"], version = "^23.12.1"}
+black = "^24.4.2"
 
 
 [tool.poetry.group.addon.dependencies]

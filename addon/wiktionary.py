@@ -1,8 +1,9 @@
 from typing import Optional
 from enum import Enum
 import re
+from dataclasses import dataclass
+
 import requests
-from aqt.utils import showInfo
 
 
 class SpeachPart(str, Enum):
@@ -20,21 +21,36 @@ class Gender(str, Enum):
     FEMALE = "FEMALE"
     NEUTRAL = "NEUTRAL"
 
+
+@dataclass
+class Page:
+    page_id: int
+    full_url: str
+
+
 # https://www.mediawiki.org/wiki/API:Query
 SEARCH_URL = "https://de.wiktionary.org/w/api.php"
 
 
-def find_word_page_id(word: str) -> Optional[int]:
+def find_word_page(word: str) -> Optional[Page]:
     params = {
         "action": "query",
         "format": "json",
+        "prop": "info",
+        "inprop": "url",
         "titles": word,
     }
     response = requests.get(SEARCH_URL, params).json()
-    pages = list(response["query"]["pages"].keys())
+    pages = response["query"]["pages"]
     if not pages:
         return None
-    return int(pages[0])
+
+    page_item = list(pages.values())[0]
+
+    return Page(
+        page_id=page_item["pageid"],
+        full_url=page_item["fullurl"],
+    )
 
 
 # https://www.mediawiki.org/wiki/API:Parsing_wikitext
@@ -46,7 +62,7 @@ def get_page_wikitext(page_id: int) -> str:
         "action": "parse",
         "format": "json",
         "prop": "wikitext",
-        "pageid": page_id
+        "pageid": page_id,
     }
     response = requests.get(PAGE_URL, params).json()
     wikitext = response["parse"]["wikitext"]["*"]
@@ -66,19 +82,9 @@ def get_file_url(file_name: str) -> Optional[str]:
         "titles": f"File:{file_name}",
     }
     response = requests.get(FILES_URL, params).json()
-    pages = list(response["query"]['pages'].values())
+    pages = list(response["query"]["pages"].values())
     imageinfo = pages[0]["imageinfo"][0]
     return imageinfo["url"]
-
-
-def get_word_wikitext(word: str) -> Optional[str]:
-    page_id = find_word_page_id(word)
-    if not page_id:
-        print(f"Page not found for word '{word}'")
-        return
-
-    wikitext = get_page_wikitext(page_id)
-    return wikitext
 
 
 AUDIO_RE = re.compile(r"\{\{Audio\|(?P<file>.*?)(|spr=(?P<spr>at))?\}\}")
@@ -105,7 +111,6 @@ def get_audio_url_from_wikitext(wikitext: str) -> Optional[str]:
 
     audio_file_url = get_file_url(audio_file_name)
     if not audio_file_url:
-        showInfo(f"Audio file URL was not found for file: {audio_file_name}")
         return
 
     return audio_file_url
@@ -122,7 +127,9 @@ def get_ipa_from_wikitext(wikitext: str) -> Optional[str]:
     return matches[0]
 
 
-SPEECH_PART_RE = re.compile(r"\{\{Wortart\|(?P<part>\w+)\|Deutsch\}\}(, +\{\{(?P<gender>f|m|n)\}\})?")
+SPEECH_PART_RE = re.compile(
+    r"\{\{Wortart\|(?P<part>\w+)\|Deutsch\}\}(, +\{\{(?P<gender>f|m|n)\}\})?"
+)
 
 
 def get_speach_part_from_wikitext(wikitext: str) -> Optional[SpeachPart]:
@@ -146,8 +153,11 @@ def get_speach_part_from_wikitext(wikitext: str) -> Optional[SpeachPart]:
         return SpeachPart.NUMBER
 
 
+GENDER_RE = re.compile(r"Genus=(?P<gender>f|m|n)")
+
+
 def get_gender_from_wikitext(wikitext: str) -> Optional[Gender]:
-    matches = list(SPEECH_PART_RE.finditer(wikitext))
+    matches = list(GENDER_RE.finditer(wikitext))
     speech_part_match = matches[0].group("gender")
 
     if speech_part_match == "m":
@@ -156,3 +166,49 @@ def get_gender_from_wikitext(wikitext: str) -> Optional[Gender]:
         return Gender.FEMALE
     if speech_part_match == "n":
         return Gender.NEUTRAL
+
+
+PLURAL_RE = re.compile(r"Nominativ Plural=(?P<plural>\w+)")
+
+
+def get_plural_from_wikitext(wikitext: str) -> Optional[str]:
+    matches = list(PLURAL_RE.finditer(wikitext))
+    if not matches:
+        return
+    return matches[0].group("plural")
+
+
+GENITIVE_RE = re.compile(r"Genitiv Singular=(?P<genitive>\w+)")
+
+
+def get_genitive_from_wikitext(wikitext: str) -> Optional[str]:
+    matches = list(GENITIVE_RE.finditer(wikitext))
+    if not matches:
+        return
+    return matches[0].group("genitive")
+
+
+REF_RE = re.compile(r"<ref[^>]*>.*?</ref>")
+EXAMPLE_RE = re.compile(r"\{\{Beispiele\}\}(?P<examples>.*?)\{\{[^{]+\}\}", re.DOTALL)
+
+
+def get_examples_from_wikitext(wikitext: str) -> list[str]:
+    wikitext = REF_RE.sub("", wikitext)
+    match = EXAMPLE_RE.search(wikitext)
+    if not match:
+        return []
+
+    examples = re.split(r"\n(?=:)", match.group("examples"))
+
+    output = []
+    for example in examples:
+        example = re.sub(r":\[[\d ,]+\]", "", example)
+        example = example.strip()
+        example = example.strip("„“=\n")
+        if not example:
+            continue
+
+        example = re.sub(r"''(.*?)''", r"<b>\1</b>", example)
+        output.append(example)
+
+    return output
