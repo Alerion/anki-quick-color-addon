@@ -102,8 +102,15 @@ def get_best_audio_match(matches) -> Optional[str]:
             return file_name
 
 
+AUSSPRACHE_RE = re.compile(r'\{\{Aussprache\}\}(?P<aussprache>.*?)\n\{\{[^{]+\}\}', re.DOTALL)
+
+
 def get_audio_url_from_wikitext(wikitext: str) -> Optional[str]:
-    matches = list(AUDIO_RE.finditer(wikitext))
+    match = AUSSPRACHE_RE.search(wikitext)
+    if not match:
+        return
+
+    matches = list(AUDIO_RE.finditer(match.group("aussprache")))
 
     if not matches:
         return
@@ -111,8 +118,8 @@ def get_audio_url_from_wikitext(wikitext: str) -> Optional[str]:
 
     audio_file_url = get_file_url(audio_file_name)
     if not audio_file_url:
+        print(f"Audio file URL was not found for file: {audio_file_name}")
         return
-
     return audio_file_url
 
 
@@ -134,9 +141,10 @@ SPEECH_PART_RE = re.compile(
 
 def get_speach_part_from_wikitext(wikitext: str) -> Optional[SpeachPart]:
     matches = list(SPEECH_PART_RE.finditer(wikitext))
+    if not matches:
+        return
     speech_part_match = matches[0].group("part")
 
-    # https://de.wiktionary.org/wiki/Hilfe:Wortart
     if speech_part_match == "Substantiv":
         return SpeachPart.NOUN
     if speech_part_match == "Verb":
@@ -147,13 +155,9 @@ def get_speach_part_from_wikitext(wikitext: str) -> Optional[SpeachPart]:
         return SpeachPart.ADVERB
     if speech_part_match == "Personalpronomen":
         return SpeachPart.PRONOUN
-    if speech_part_match in ("Junktion", "Konjunktion", "Subjunktion"):
-        return SpeachPart.JUNKTION
-    if speech_part_match == "Numerale":
-        return SpeachPart.NUMBER
 
 
-GENDER_RE = re.compile(r"Genus=(?P<gender>f|m|n)")
+GENDER_RE = re.compile(r"Genus( \d)?=(?P<gender>f|m|n)")
 
 
 def get_gender_from_wikitext(wikitext: str) -> Optional[Gender]:
@@ -189,29 +193,30 @@ def get_genitive_from_wikitext(wikitext: str) -> Optional[str]:
 
 
 REF_RE = re.compile(r"<ref[^>]*>.*?</ref>")
-EXAMPLE_RE = re.compile(r"\{\{Beispiele\}\}(?P<examples>.*?)\{\{[^{]+\}\}", re.DOTALL)
+EXAMPLE_RE = re.compile(r'\{\{Beispiele\}\}(?P<examples>.*?)\n\{\{[^{]+\}\}', re.DOTALL)
 
 
-def get_examples_from_wikitext(wikitext: str, max_number: int = 10) -> list[str]:
-    wikitext = REF_RE.sub("", wikitext)
+def get_examples_from_wikitext(wikitext: str) -> list[str]:
     match = EXAMPLE_RE.search(wikitext)
     if not match:
         return []
-
-    examples = re.split(r"\n(?=:)", match.group("examples"))
+    example_text = match.group("examples")
+    examples = re.split(r"\n(?=:)", example_text)
 
     output = []
     for example in examples:
-        example = re.sub(r":\[[\w ,]+\]", "", example)
+        example = re.sub(r":\[[\w ,–]+\]", "", example)
+        example = example.replace("\n", "")
+        example = REF_RE.sub('', example)
         example = example.strip()
-        example = example.strip("„“=\n")
-        if not example or example.startswith("::Anneliese"):
+        example = example.strip("„“=\n»«")
+        if not example or example.startswith("::Anneliese") or len(example) > 150:
             continue
 
         example = re.sub(r"''(.*?)''", r"<b>\1</b>", example)
         output.append(example)
 
-    return output[:max_number]
+    return output[:5]
 
 
 HELP_VERB_RE = re.compile(r"Hilfsverb=(?P<help_verb>\w+)")

@@ -51,21 +51,21 @@ def insert_template(editor: aqt.editor.Editor) -> None:
     editor.web.eval(f"setFormat('insertHTML', '{html}')")
 
 
-DER_TEXT = '<span style="color: #2a74ff; font-size: inherit;"><b>der&nbsp;</b></span>'
+DER_TEXT = '<span style="color: #2a74ff; font-weight: bold;">der</span>&nbsp;'
 
 
 def insert_der(editor: aqt.editor.Editor) -> None:
     editor.web.eval(f"setFormat('insertHTML', '{DER_TEXT}')")
 
 
-DIE_TEXT = '<span style="color: #fd6d85; font-size: inherit;"><b>die&nbsp;</b></span>'
+DIE_TEXT = '<span style="color: #fd6d85; font-weight: bold;">die</span>&nbsp;'
 
 
 def insert_die(editor: aqt.editor.Editor) -> None:
     editor.web.eval(f"setFormat('insertHTML', '{DIE_TEXT}')")
 
 
-DAS_TEXT = '<span style="color: #00aa00; font-size: inherit;"><b>das&nbsp;</b></span>'
+DAS_TEXT = '<span style="color: #00aa00; font-weight: bold;">das</span>&nbsp;'
 
 
 def insert_das(editor: aqt.editor.Editor) -> None:
@@ -107,8 +107,8 @@ def insert_pronoun(editor: aqt.editor.Editor) -> None:
     editor.web.eval(f"setFormat('insertHTML', '{PRONOMEN_TEXT}')")
 
 
-JUNKTION_TEXT = '<span style="color: #eee;"><b>JUNKTION</b></span>'
-NUMBER_TEXT = '<span style="color: #eee;"><b>NUMBER</b></span>'
+JUNKTION_TEXT = '<span style="color: #333;"><b>JUNKTION</b></span>'
+NUMBER_TEXT = '<span style="color: #333;"><b>NUMBER</b></span>'
 
 
 SPEACH_PART_TO_TEXT = {
@@ -155,22 +155,25 @@ def insert_word_description(
     if speech_part in SPEACH_PART_TO_TEXT:
         editor.note["Info"] = SPEACH_PART_TO_TEXT[speech_part]
 
+    editor.note["Front"] = ""
+    editor.note["Example"] = ""
+
     # NOUN
     article_text = ""
     if speech_part == SpeachPart.NOUN:
         # Set article.
         gender = get_gender_from_wikitext(wikitext)
         if gender:
-            article_text = f"{GENDER_TO_TEXT[gender]} "
+            article_text = GENDER_TO_TEXT[gender]
 
         # Set Example field.
         plural = get_plural_from_wikitext(wikitext)
         genitive = get_genitive_from_wikitext(wikitext)
         editor.note["Example"] = (
             f'<span class="plural-label">plural:</span>'
-            f'<span class="plural-value">{plural}</span>'
-            f'<span class="genitive-label">genitive:</span>'
-            f'<span class="genitive-value">{genitive}</span>'
+            f'&nbsp;<span class="plural-value">{plural}</span>'
+            f'&nbsp;<span class="genitive-label">genitive:</span>'
+            f'&nbsp;<span class="genitive-value">{genitive}</span>'
         )
 
     if speech_part == SpeachPart.VERB:
@@ -179,17 +182,17 @@ def insert_word_description(
         partizip2 = get_partizip2_from_wikitext(wikitext)
         editor.note["Example"] = (
             f'<span class="prateritum-label">Präteritum:</span>'
-            f'<span class="prateritum-value">{prateritum}</span>'
-            f'<span class="partizip2-label">Partizip II:</span>'
-            f'<span class="partizip2-value">{partizip2}</span>'
+            f'&nbsp;<span class="prateritum-value">{prateritum}</span>'
+            f'&nbsp;<span class="partizip2-label">Partizip II:</span>'
+            f'&nbsp;<span class="partizip2-value">{partizip2}</span>'
         )
 
         # Add help verb.
         help_verb = get_help_verb_from_wikitext(wikitext)
         if help_verb == "sein":
             editor.note["Example"] += (
-                f', <span class="hilfsverb-label">Hilfsverb:</span>'
-                f'<span class="hilfsverb-value">{help_verb}</span>'
+                f'&nbsp;<span class="hilfsverb-label">Hilfsverb:</span>'
+                f'&nbsp;<span class="hilfsverb-value">{help_verb}</span>'
             )
 
     # Add examples.
@@ -212,8 +215,9 @@ def insert_word_description(
 
     # Load IPA
     ipa = get_ipa_from_wikitext(wikitext)
+
     # Insert word
-    html = f"<h2>{article_text}{word}</h2>[{ipa}]"
+    html = f"<h2>{article_text}{word.strip()}</h2>[{ipa}]"
     editor.web.eval(f"setFormat('insertHTML', '{html}')")
 
     # Insert audio
