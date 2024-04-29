@@ -15,6 +15,7 @@ black = "^24.4.2"
 
 [tool.poetry.group.addon.dependencies]
 requests = "^2.31.0"
+deepl = "^1.18.0"
 
 [build-system]
 requires = ["poetry-core"]

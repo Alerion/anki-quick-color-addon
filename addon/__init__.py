@@ -8,13 +8,14 @@ import sys
 import os.path
 
 # Inject external dependencies.
-DEPENDENCIES_PATH = os.path.join(os.path.dirname(__file__), "../dependencies")
+DEPENDENCIES_PATH = os.path.join(os.path.dirname(__file__), "./dependencies")
 sys.path.insert(0, DEPENDENCIES_PATH)
 
 from functools import partial
 import aqt.editor
 from aqt import gui_hooks
 from aqt.utils import showInfo
+from aqt import mw
 
 from .wiktionary import (
     find_word_page,
@@ -29,6 +30,7 @@ from .wiktionary import (
     get_genitive_from_wikitext,
     get_examples_from_wikitext,
 )
+from .translation import get_uk_translation
 
 RED = "#c12d30"
 
@@ -178,6 +180,12 @@ def insert_word_description(
 
         # Add Wiktionary URL.
         editor.note["Example"] += f'<a href="{page.full_url}">{page.full_url}</a>'
+
+        # Add translation.
+        config = mw.addonManager.getConfig(__name__)
+        if config["DEEPL_AUTH_KEY"]:
+            uk_word = get_uk_translation(word, config["DEEPL_AUTH_KEY"])
+            editor.note["Back"] = f'<span style="font-weight: bold;">{uk_word}</span>'
 
         editor.set_note(editor.note)
 
