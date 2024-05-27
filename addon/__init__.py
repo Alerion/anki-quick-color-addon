@@ -109,6 +109,7 @@ def insert_pronoun(editor: aqt.editor.Editor) -> None:
 
 JUNKTION_TEXT = '<span style="color: #333;"><b>JUNKTION</b></span>'
 NUMBER_TEXT = '<span style="color: #333;"><b>NUMBER</b></span>'
+PLURAL_TEXT = '<span style="color: #333;"><b>PLURAL</b></span>'
 
 
 SPEACH_PART_TO_TEXT = {
@@ -119,6 +120,7 @@ SPEACH_PART_TO_TEXT = {
     SpeachPart.PRONOUN: PRONOMEN_TEXT,
     SpeachPart.JUNKTION: JUNKTION_TEXT,
     SpeachPart.NUMBER: NUMBER_TEXT,
+    SpeachPart.PLURAL: PLURAL_TEXT,
 }
 
 GENDER_TO_TEXT = {
@@ -171,7 +173,7 @@ def insert_word_description(
         genitive = get_genitive_from_wikitext(wikitext)
         editor.note["Example"] = (
             f'<span class="plural-label">plural:</span>'
-            f'&nbsp;<span class="plural-value">{plural}</span>'
+            f'&nbsp;<span class="plural-value">{plural or "-"}</span>'
             f'&nbsp;<span class="genitive-label">genitive:</span>'
             f'&nbsp;<span class="genitive-value">{genitive}</span>'
         )

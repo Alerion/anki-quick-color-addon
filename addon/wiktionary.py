@@ -14,6 +14,7 @@ class SpeachPart(str, Enum):
     PRONOUN = "PRONOUN"
     NUMBER = "NUMBER"
     JUNKTION = "JUNKTION"
+    PLURAL = "PLURAL"
 
 
 class Gender(str, Enum):
@@ -101,6 +102,9 @@ def get_best_audio_match(matches) -> Optional[str]:
         if file_name.startswith("De-"):
             return file_name
 
+    if matches:
+        return matches[0].group("file")
+
 
 AUSSPRACHE_RE = re.compile(r'\{\{Aussprache\}\}(?P<aussprache>.*?)\n\{\{[^{]+\}\}', re.DOTALL)
 
@@ -115,6 +119,8 @@ def get_audio_url_from_wikitext(wikitext: str) -> Optional[str]:
     if not matches:
         return
     audio_file_name = get_best_audio_match(matches)
+    if not audio_file_name:
+        return
 
     audio_file_url = get_file_url(audio_file_name)
     if not audio_file_url:
@@ -137,6 +143,7 @@ def get_ipa_from_wikitext(wikitext: str) -> Optional[str]:
 SPEECH_PART_RE = re.compile(
     r"\{\{Wortart\|(?P<part>\w+)\|Deutsch\}\}(, +\{\{(?P<gender>f|m|n)\}\})?"
 )
+KEIN_SINGULAR = "{{kSg.}}"
 
 
 def get_speach_part_from_wikitext(wikitext: str) -> Optional[SpeachPart]:
@@ -144,8 +151,9 @@ def get_speach_part_from_wikitext(wikitext: str) -> Optional[SpeachPart]:
     if not matches:
         return
     speech_part_match = matches[0].group("part")
-
     if speech_part_match == "Substantiv":
+        if KEIN_SINGULAR in wikitext:
+            return SpeachPart.PLURAL
         return SpeachPart.NOUN
     if speech_part_match == "Verb":
         return SpeachPart.VERB
@@ -172,7 +180,7 @@ def get_gender_from_wikitext(wikitext: str) -> Optional[Gender]:
         return Gender.NEUTRAL
 
 
-PLURAL_RE = re.compile(r"Nominativ Plural=(?P<plural>\w+)")
+PLURAL_RE = re.compile(r"Nominativ Plural(?: 1)?=(?P<plural>\w+)")
 
 
 def get_plural_from_wikitext(wikitext: str) -> Optional[str]:
@@ -182,7 +190,7 @@ def get_plural_from_wikitext(wikitext: str) -> Optional[str]:
     return matches[0].group("plural")
 
 
-GENITIVE_RE = re.compile(r"Genitiv Singular=(?P<genitive>\w+)")
+GENITIVE_RE = re.compile(r"Genitiv Singular(?: 1)?=(?P<genitive>\w+)")
 
 
 def get_genitive_from_wikitext(wikitext: str) -> Optional[str]:
