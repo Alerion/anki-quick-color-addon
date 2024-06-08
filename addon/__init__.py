@@ -209,7 +209,7 @@ def insert_word_description(
     editor.note["Example"] += f'<a href="{page.full_url}">{page.full_url}</a>'
 
     # Add translation.
-    if config["INSERT_TRANSLATION"] and config["DEEPL_AUTH_KEY"]:
+    if not editor.note["Back"].strip() and config["INSERT_TRANSLATION"] and config["DEEPL_AUTH_KEY"]:
         uk_word = get_uk_translation(word, config["DEEPL_AUTH_KEY"])
         editor.note["Back"] = f'<span style="font-weight: bold;">{uk_word}</span>'
 
